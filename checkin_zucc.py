@@ -59,15 +59,6 @@ class CheckIn_ZUCC(object):
             raise RegexMatchError("未发现缓存信息，请先至少手动成功打卡一次再运行脚本")
         self.info['answer'] = json.loads(res['data']['answer'])
 
-        #获取问卷信息
-        res=self.session.post(url=self.examen_url,
-            data={'esId' : 2})
-        res = json.loads(res.content)
-        self.info['questions'] = json.loads(res['data']['examen']['scheme'])['questions']
-        for question in self.info['questions']:
-            if not question['title'] in self.info['answer']:
-                raise RegexMatchError("发现未缓存信息 "+question['title']+" ，请重新手动成功打卡一次再运行脚本")
-
         #获取用户信息
         res=self.session.post(self.user_url)
         res = json.loads(res.content)
@@ -82,6 +73,20 @@ class CheckIn_ZUCC(object):
 
     def post(self):
         answer = self.info['answer']
+                #获取问卷信息
+        res=self.session.post(url=self.examen_url,
+            data={'esId' : 2})
+        res = json.loads(res.content)
+        self.info['questions'] = json.loads(res['data']['examen']['scheme'])['questions']
+        return_value = None
+        for question in self.info['questions']:
+            if not question['title'] in answer:
+                return_value = {
+                'e':-1,
+                'm':"发现未缓存信息 "+question['title']+" ，请重新手动成功打卡一次再运行脚本"
+                }
+                break
+
         answer['填报日期'] = self.get_date()
         data = {
             "examenSchemeId":
@@ -104,6 +109,8 @@ class CheckIn_ZUCC(object):
             }
         if(1000 == res['code']):
             return {'e':0}
+        if return_value:
+            return return_value
         return {
                 'e':res['code'],
                 'm':res['message']
